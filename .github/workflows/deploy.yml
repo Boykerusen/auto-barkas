@@ -19,61 +19,30 @@ jobs:
       - name: Ambil kode dari GitHub
         uses: actions/checkout@v4
 
-      - name: Periksa dan ekstrak ZIP
+      - name: Ekstrak ZIP
         run: |
           test -f AUTO-BARKAS-web-v1.0-pastel.zip
           unzip -t AUTO-BARKAS-web-v1.0-pastel.zip
           mkdir -p site-src
           unzip -o AUTO-BARKAS-web-v1.0-pastel.zip -d site-src
 
-      - name: Periksa struktur website
+      - name: Siapkan folder public
         run: |
-          echo "Isi hasil ekstraksi:"
-          find site-src -maxdepth 3 -type f | head -100
-          if [ -f site-src/package.json ]; then
-            echo "package.json ditemukan di site-src"
-          elif find site-src -mindepth 2 -maxdepth 4 -name package.json | grep -q .; then
-            echo "package.json ditemukan di subfolder"
-          else
-            echo "ERROR: package.json tidak ditemukan"
-            exit 1
-          fi
-
-      - name: Tentukan folder proyek
-        id: project
-        run: |
-          if [ -f site-src/package.json ]; then
-            echo "dir=site-src" >> "$GITHUB_OUTPUT"
-          else
-            PACKAGE=$(find site-src -mindepth 2 -maxdepth 4 -name package.json | head -1)
-            echo "dir=$(dirname "$PACKAGE")" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Siapkan Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
+          mkdir -p site-src/public
 
       - name: Build website
-        working-directory: .
-        run: |
-          cd "${{ steps.project.outputs.dir }}"
-          npm run build
+        working-directory: site-src
+        run: npm run build
 
-      - name: Pastikan hasil build tersedia
+      - name: Periksa hasil build
         run: |
-          DIST="${{ steps.project.outputs.dir }}/dist"
-          if [ ! -f "$DIST/index.html" ]; then
-            echo "ERROR: dist/index.html tidak ditemukan"
-            find "${{ steps.project.outputs.dir }}" -maxdepth 3 -type f | head -100
-            exit 1
-          fi
-          echo "Website siap diterbitkan."
+          test -f site-src/dist/index.html
+          echo "Build berhasil. Folder dist tersedia."
 
       - name: Deploy ke Cloudflare Pages
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy "${{ steps.project.outputs.dir }}/dist" --project-name=auto-barkas --branch=main
+          command: pages deploy site-src/dist --project-name=auto-barkas --branch=main
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
