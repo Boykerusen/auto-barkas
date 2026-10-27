@@ -19,8 +19,14 @@ jobs:
       - name: Ambil kode dari GitHub
         uses: actions/checkout@v4
 
-      - name: Ekstrak ZIP
+      - name: Siapkan Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Periksa dan ekstrak ZIP
         run: |
+          set -eu
           test -f AUTO-BARKAS-web-v1.0-pastel.zip
           unzip -t AUTO-BARKAS-web-v1.0-pastel.zip
           mkdir -p site-src
@@ -36,8 +42,17 @@ jobs:
 
       - name: Periksa hasil build
         run: |
+          set -eu
           test -f site-src/dist/index.html
-          echo "Build berhasil. Folder dist tersedia."
+          echo "Build berhasil."
+          echo "Folder site-src/dist siap di-deploy."
+
+      - name: Periksa autentikasi Cloudflare
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: whoami
 
       - name: Deploy ke Cloudflare Pages
         uses: cloudflare/wrangler-action@v4
