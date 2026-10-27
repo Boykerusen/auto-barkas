@@ -45,16 +45,16 @@ jobs:
           set -eu
           test -f site-src/dist/index.html
           echo "Build berhasil."
-          echo "Folder site-src/dist siap di-deploy."
 
-      - name: Periksa autentikasi Cloudflare
+      - name: Buat proyek Pages jika belum ada
         uses: cloudflare/wrangler-action@v4
+        continue-on-error: true
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: whoami
+          command: pages project create auto-barkas --production-branch=main
 
-      - name: Deploy ke Cloudflare Pages
+      - name: Deploy website ke Cloudflare Pages
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
