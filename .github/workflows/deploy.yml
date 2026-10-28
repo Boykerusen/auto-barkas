@@ -27,10 +27,10 @@ jobs:
       - name: Periksa dan ekstrak ZIP
         run: |
           set -eu
-          test -f AUTO-BARKAS-web-v1.0-pastel.zip
-          unzip -t AUTO-BARKAS-web-v1.0-pastel.zip
+          test -f AUTO-BARKAS-web-v1.0-pastel-fixed.zip
+          unzip -t AUTO-BARKAS-web-v1.0-pastel-fixed.zip
           mkdir -p site-src
-          unzip -o AUTO-BARKAS-web-v1.0-pastel.zip -d site-src
+          unzip -o AUTO-BARKAS-web-v1.0-pastel-fixed.zip -d site-src
 
       - name: Siapkan folder public
         run: |
