@@ -24,22 +24,14 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Periksa dan ekstrak ZIP v1.2
+      - name: Periksa dan ekstrak ZIP v1.3
         run: |
           set -eu
-          ZIP_FILE="AUTO-BARKAS-web-v1.2-formulir.zip"
-
-          echo "Memeriksa file proyek..."
+          ZIP_FILE="AUTO-BARKAS-web-v1.3-logo-BA-profesional.zip"
           test -f "$ZIP_FILE"
-
-          echo "Memeriksa isi ZIP..."
           unzip -t "$ZIP_FILE"
-
           mkdir -p site-src
           unzip -o "$ZIP_FILE" -d site-src
-
-          echo "Isi proyek berhasil diekstrak."
-          ls -la site-src
 
       - name: Siapkan folder public
         run: mkdir -p site-src/public
@@ -50,20 +42,16 @@ jobs:
           set -eu
           test -f package.json
           test -f index.html
-          echo "File utama proyek ditemukan."
 
       - name: Build website
         working-directory: site-src
-        run: |
-          set -eu
-          npm run build
+        run: npm run build
 
       - name: Periksa hasil build
         run: |
           set -eu
           test -f site-src/dist/index.html
-          echo "Build website berhasil."
-          ls -la site-src/dist
+          echo "Build AUTO BARKAS berhasil."
 
       - name: Deploy website ke Cloudflare Pages
         uses: cloudflare/wrangler-action@v4
