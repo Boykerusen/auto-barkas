@@ -1,27 +1,39 @@
 name: Build and Deploy AUTO BARKAS
 
-on: [push, workflow_dispatch]
+'on':
+workflow_dispatch:
+push:
+branches:
+- main
+
+permissions:
+contents: read
+deployments: write
 
 jobs:
-build:
+build-and-deploy:
 runs-on: ubuntu-latest
 steps:
-- uses: actions/checkout@v4
+- name: Checkout repository
+uses: actions/checkout@v4
 
-  - uses: actions/setup-node@v4
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
     with:
-      node-version: 20
+      node-version: '20'
 
-  - name: Extract project ZIP
+  - name: Check and extract ZIP
     shell: bash
     run: |
       set -eu
       ZIP_FILE="AUTOBARKAS-v15.zip"
+
       if [ ! -f "$ZIP_FILE" ]; then
-        echo "ZIP tidak ditemukan: $ZIP_FILE"
+        echo "ERROR: ZIP tidak ditemukan: $ZIP_FILE"
         ls -la
         exit 1
       fi
+
       unzip -t "$ZIP_FILE"
       mkdir -p site-src
       unzip -oq "$ZIP_FILE" -d site-src
@@ -30,18 +42,31 @@ steps:
     shell: bash
     run: |
       set -eu
+
       PACKAGE_JSON="$(find site-src -type f -name package.json -print -quit)"
+
       if [ -z "$PACKAGE_JSON" ]; then
-        echo "package.json tidak ditemukan dalam ZIP"
+        echo "ERROR: package.json tidak ditemukan."
         find site-src -maxdepth 4 -type f | head -80
         exit 1
       fi
+
       PROJECT_DIR="$(dirname "$PACKAGE_JSON")"
-      test -f "$PROJECT_DIR/index.html"
+
+      if [ ! -f "$PROJECT_DIR/index.html" ]; then
+        echo "ERROR: index.html tidak ditemukan di $PROJECT_DIR"
+        exit 1
+      fi
+
       cd "$PROJECT_DIR"
       npm install
       npm run build
-      test -f dist/index.html
+
+      if [ ! -f dist/index.html ]; then
+        echo "ERROR: hasil dist/index.html tidak ditemukan."
+        exit 1
+      fi
+
       echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
   - name: Deploy to Cloudflare Pages
