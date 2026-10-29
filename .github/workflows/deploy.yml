@@ -1,83 +1,50 @@
 name: Build and Deploy AUTO BARKAS
 
-'on':
-workflow_dispatch:
-push:
-branches:
-- main
-
-permissions:
-contents: read
-deployments: write
+on: [push, workflow_dispatch]
 
 jobs:
-build-and-deploy:
+build:
 runs-on: ubuntu-latest
-
 steps:
-  - name: Ambil kode dari GitHub
-    uses: actions/checkout@v4
+- uses: actions/checkout@v4
 
-  - name: Siapkan Node.js
-    uses: actions/setup-node@v4
+  - uses: actions/setup-node@v4
     with:
-      node-version: '20'
+      node-version: 20
 
-  - name: Periksa dan ekstrak ZIP v1.5
+  - name: Extract project ZIP
     shell: bash
     run: |
       set -eu
-
       ZIP_FILE="AUTOBARKAS-v15.zip"
-
       if [ ! -f "$ZIP_FILE" ]; then
-        echo "ERROR: File ZIP tidak ditemukan: $ZIP_FILE"
+        echo "ZIP tidak ditemukan: $ZIP_FILE"
         ls -la
         exit 1
       fi
-
       unzip -t "$ZIP_FILE"
       mkdir -p site-src
       unzip -oq "$ZIP_FILE" -d site-src
 
+  - name: Find project and build
+    shell: bash
+    run: |
+      set -eu
       PACKAGE_JSON="$(find site-src -type f -name package.json -print -quit)"
-
       if [ -z "$PACKAGE_JSON" ]; then
-        echo "ERROR: package.json tidak ditemukan dalam ZIP."
+        echo "package.json tidak ditemukan dalam ZIP"
         find site-src -maxdepth 4 -type f | head -80
         exit 1
       fi
-
       PROJECT_DIR="$(dirname "$PACKAGE_JSON")"
-      echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-      echo "Folder proyek ditemukan: $PROJECT_DIR"
-
-  - name: Siapkan folder public
-    run: mkdir -p "$PROJECT_DIR/public"
-
-  - name: Periksa konfigurasi proyek
-    shell: bash
-    run: |
-      set -eu
-      test -f "$PROJECT_DIR/package.json"
       test -f "$PROJECT_DIR/index.html"
-      echo "Konfigurasi proyek ditemukan."
-
-  - name: Build website
-    working-directory: .
-    run: |
       cd "$PROJECT_DIR"
       npm install
       npm run build
+      test -f dist/index.html
+      echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-  - name: Periksa hasil build
-    shell: bash
-    run: |
-      set -eu
-      test -f "$PROJECT_DIR/dist/index.html"
-      echo "Build AUTO BARKAS berhasil."
-
-  - name: Deploy website ke Cloudflare Pages
+  - name: Deploy to Cloudflare Pages
     uses: cloudflare/wrangler-action@v4
     with:
       apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
