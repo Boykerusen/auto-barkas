@@ -1,6 +1,6 @@
 name: Deploy AUTO BARKAS Website
 
-on:
+'on':
 workflow_dispatch:
 push:
 branches:
@@ -14,15 +14,15 @@ deploy:
 runs-on: ubuntu-latest
 
 steps:
-  - name: Ambil kode GitHub
+  - name: Checkout repository
     uses: actions/checkout@v4
 
-  - name: Siapkan Node.js
+  - name: Setup Node.js
     uses: actions/setup-node@v4
     with:
-      node-version: 20
+      node-version: '20'
 
-  - name: Ekstrak ZIP dan build website
+  - name: Extract ZIP and build website
     shell: bash
     run: |
       set -eu
@@ -30,8 +30,7 @@ steps:
       ZIP_FILE="AUTOBARKAS-v15.zip"
 
       if [ ! -f "$ZIP_FILE" ]; then
-        echo "ERROR: File $ZIP_FILE tidak ditemukan."
-        echo "Unggah ZIP ke halaman utama repositori."
+        echo "ERROR: ZIP tidak ditemukan: $ZIP_FILE"
         ls -la
         exit 1
       fi
@@ -42,16 +41,15 @@ steps:
       PACKAGE_JSON="$(find site-src -type f -name package.json -print -quit)"
 
       if [ -z "$PACKAGE_JSON" ]; then
-        echo "ERROR: package.json tidak ditemukan di dalam ZIP."
-        find site-src -maxdepth 3 -type f | head -80
+        echo "ERROR: package.json tidak ditemukan dalam ZIP."
+        find site-src -maxdepth 4 -type f | head -80
         exit 1
       fi
 
       PROJECT_DIR="$(dirname "$PACKAGE_JSON")"
-      echo "Folder proyek: $PROJECT_DIR"
-
       cd "$PROJECT_DIR"
-      npm ci
+
+      npm install
       npm run build
 
       if [ ! -f dist/index.html ]; then
@@ -62,7 +60,7 @@ steps:
       mkdir -p "$GITHUB_WORKSPACE/deploy-dist"
       cp -a dist/. "$GITHUB_WORKSPACE/deploy-dist/"
 
-  - name: Deploy ke Cloudflare Pages
+  - name: Deploy to Cloudflare Pages
     uses: cloudflare/wrangler-action@v3
     with:
       apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
