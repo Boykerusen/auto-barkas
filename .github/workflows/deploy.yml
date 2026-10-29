@@ -24,35 +24,46 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Periksa dan ekstrak ZIP
+      - name: Periksa dan ekstrak ZIP v1.2
         run: |
           set -eu
-          test -f AUTO-BARKAS-web-v1.1-api-search.zip
-          unzip -t AUTO-BARKAS-web-v1.1-api-search.zip
+          ZIP_FILE="AUTO-BARKAS-web-v1.2-formulir.zip"
+
+          echo "Memeriksa file proyek..."
+          test -f "$ZIP_FILE"
+
+          echo "Memeriksa isi ZIP..."
+          unzip -t "$ZIP_FILE"
+
           mkdir -p site-src
-          unzip -o AUTO-BARKAS-web-v1.1-api-search.zip -d site-src
+          unzip -o "$ZIP_FILE" -d site-src
+
+          echo "Isi proyek berhasil diekstrak."
+          ls -la site-src
 
       - name: Siapkan folder public
+        run: mkdir -p site-src/public
+
+      - name: Periksa konfigurasi proyek
+        working-directory: site-src
         run: |
-          mkdir -p site-src/public
+          set -eu
+          test -f package.json
+          test -f index.html
+          echo "File utama proyek ditemukan."
 
       - name: Build website
         working-directory: site-src
-        run: npm run build
+        run: |
+          set -eu
+          npm run build
 
       - name: Periksa hasil build
         run: |
           set -eu
           test -f site-src/dist/index.html
-          echo "Build berhasil."
-
-      - name: Buat proyek Pages jika belum ada
-        uses: cloudflare/wrangler-action@v4
-        continue-on-error: true
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages project create auto-barkas --production-branch=main
+          echo "Build website berhasil."
+          ls -la site-src/dist
 
       - name: Deploy website ke Cloudflare Pages
         uses: cloudflare/wrangler-action@v4
