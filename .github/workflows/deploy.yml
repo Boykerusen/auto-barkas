@@ -27,7 +27,7 @@ jobs:
       - name: Periksa dan ekstrak ZIP v1.3
         run: |
           set -eu
-          ZIP_FILE="AUTO-BARKAS-web-v1.3-logo-BA-profesional.zip"
+          ZIP_FILE="AUTO-BARKAS-web-v1.5-logo-BA-marketplace-urang-awak-sumbar.zip"
           test -f "$ZIP_FILE"
           unzip -t "$ZIP_FILE"
           mkdir -p site-src
