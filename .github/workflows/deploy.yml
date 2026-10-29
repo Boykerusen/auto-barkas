@@ -1,4 +1,4 @@
-name: Deploy AUTO BARKAS Website
+name: Build and Deploy AUTO BARKAS
 
 'on':
 workflow_dispatch:
@@ -8,21 +8,22 @@ branches:
 
 permissions:
 contents: read
+deployments: write
 
 jobs:
-deploy:
+build-and-deploy:
 runs-on: ubuntu-latest
 
 steps:
-  - name: Checkout repository
+  - name: Ambil kode dari GitHub
     uses: actions/checkout@v4
 
-  - name: Setup Node.js
+  - name: Siapkan Node.js
     uses: actions/setup-node@v4
     with:
       node-version: '20'
 
-  - name: Extract ZIP and build website
+  - name: Periksa dan ekstrak ZIP v1.5
     shell: bash
     run: |
       set -eu
@@ -30,11 +31,12 @@ steps:
       ZIP_FILE="AUTOBARKAS-v15.zip"
 
       if [ ! -f "$ZIP_FILE" ]; then
-        echo "ERROR: ZIP tidak ditemukan: $ZIP_FILE"
+        echo "ERROR: File ZIP tidak ditemukan: $ZIP_FILE"
         ls -la
         exit 1
       fi
 
+      unzip -t "$ZIP_FILE"
       mkdir -p site-src
       unzip -oq "$ZIP_FILE" -d site-src
 
@@ -47,22 +49,38 @@ steps:
       fi
 
       PROJECT_DIR="$(dirname "$PACKAGE_JSON")"
-      cd "$PROJECT_DIR"
+      echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+      echo "Folder proyek ditemukan: $PROJECT_DIR"
 
+  - name: Siapkan folder public
+    run: mkdir -p "$PROJECT_DIR/public"
+
+  - name: Periksa konfigurasi proyek
+    shell: bash
+    run: |
+      set -eu
+      test -f "$PROJECT_DIR/package.json"
+      test -f "$PROJECT_DIR/index.html"
+      echo "Konfigurasi proyek ditemukan."
+
+  - name: Build website
+    working-directory: .
+    run: |
+      cd "$PROJECT_DIR"
       npm install
       npm run build
 
-      if [ ! -f dist/index.html ]; then
-        echo "ERROR: dist/index.html tidak ditemukan."
-        exit 1
-      fi
+  - name: Periksa hasil build
+    shell: bash
+    run: |
+      set -eu
+      test -f "$PROJECT_DIR/dist/index.html"
+      echo "Build AUTO BARKAS berhasil."
 
-      mkdir -p "$GITHUB_WORKSPACE/deploy-dist"
-      cp -a dist/. "$GITHUB_WORKSPACE/deploy-dist/"
-
-  - name: Deploy to Cloudflare Pages
-    uses: cloudflare/wrangler-action@v3
+  - name: Deploy website ke Cloudflare Pages
+    uses: cloudflare/wrangler-action@v4
     with:
       apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      command: pages deploy deploy-dist --project-name=auto-barkas
+      command: pages deploy "${{ env.PROJECT_DIR }}/dist" --project-name=auto-barkas --branch=main
+      gitHubToken: ${{ secrets.GITHUB_TOKEN }}
