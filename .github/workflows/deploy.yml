@@ -1,62 +1,70 @@
-
-name: Build and Deploy AUTO BARKAS
+name: Deploy AUTO BARKAS Website
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
+workflow_dispatch:
+push:
+branches:
+- main
 
 permissions:
-  contents: read
-  deployments: write
+contents: read
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+deploy:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Ambil kode dari GitHub
-        uses: actions/checkout@v4
+steps:
+  - name: Ambil kode GitHub
+    uses: actions/checkout@v4
 
-      - name: Siapkan Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+  - name: Siapkan Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: 20
 
-      - name: Periksa dan ekstrak ZIP v1.3
-        run: |
-          set -eu
-          ZIP_FILE="AUTO-BARKAS-web-v1.5-logo-BA-marketplace-urang-awak-sumbar.zip"
-          test -f "$ZIP_FILE"
-          unzip -t "$ZIP_FILE"
-          mkdir -p site-src
-          unzip -o "$ZIP_FILE" -d site-src
+  - name: Ekstrak ZIP dan build website
+    shell: bash
+    run: |
+      set -eu
 
-      - name: Siapkan folder public
-        run: mkdir -p site-src/public
+      ZIP_FILE="AUTOBARKAS-v15.zip"
 
-      - name: Periksa konfigurasi proyek
-        working-directory: site-src
-        run: |
-          set -eu
-          test -f package.json
-          test -f index.html
+      if [ ! -f "$ZIP_FILE" ]; then
+        echo "ERROR: File $ZIP_FILE tidak ditemukan."
+        echo "Unggah ZIP ke halaman utama repositori."
+        ls -la
+        exit 1
+      fi
 
-      - name: Build website
-        working-directory: site-src
-        run: npm run build
+      mkdir -p site-src
+      unzip -oq "$ZIP_FILE" -d site-src
 
-      - name: Periksa hasil build
-        run: |
-          set -eu
-          test -f site-src/dist/index.html
-          echo "Build AUTO BARKAS berhasil."
+      PACKAGE_JSON="$(find site-src -type f -name package.json -print -quit)"
 
-      - name: Deploy website ke Cloudflare Pages
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy site-src/dist --project-name=auto-barkas --branch=main
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+      if [ -z "$PACKAGE_JSON" ]; then
+        echo "ERROR: package.json tidak ditemukan di dalam ZIP."
+        find site-src -maxdepth 3 -type f | head -80
+        exit 1
+      fi
+
+      PROJECT_DIR="$(dirname "$PACKAGE_JSON")"
+      echo "Folder proyek: $PROJECT_DIR"
+
+      cd "$PROJECT_DIR"
+      npm ci
+      npm run build
+
+      if [ ! -f dist/index.html ]; then
+        echo "ERROR: dist/index.html tidak ditemukan."
+        exit 1
+      fi
+
+      mkdir -p "$GITHUB_WORKSPACE/deploy-dist"
+      cp -a dist/. "$GITHUB_WORKSPACE/deploy-dist/"
+
+  - name: Deploy ke Cloudflare Pages
+    uses: cloudflare/wrangler-action@v3
+    with:
+      apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      command: pages deploy deploy-dist --project-name=auto-barkas
