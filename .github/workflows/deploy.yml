@@ -1,3 +1,4 @@
+
 name: Build and Deploy AUTO BARKAS
 
 on:
@@ -9,6 +10,10 @@ on:
 permissions:
   contents: read
   deployments: write
+
+concurrency:
+  group: auto-barkas-deploy
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
@@ -28,15 +33,18 @@ jobs:
         run: |
           set -euo pipefail
 
-          ZIP_FILE="AUTO-BARKAS-v1.10.4-perbaikan-admin-pastel.zip"
+          ZIP_FILE="AUTO-BARKAS-v1.10.5-perbaikan-cloudinary-public-id.zip"
 
           if [ ! -f "$ZIP_FILE" ]; then
-            echo "ZIP tidak ditemukan: $ZIP_FILE"
+            echo "ERROR: ZIP tidak ditemukan: $ZIP_FILE"
+            echo "Isi folder repository:"
             ls -la
             exit 1
           fi
 
+          echo "Memeriksa ZIP..."
           unzip -t "$ZIP_FILE"
+
           mkdir -p site-src
           unzip -oq "$ZIP_FILE" -d site-src
 
@@ -48,18 +56,22 @@ jobs:
           PACKAGE_JSON="$(find site-src -type f -name package.json -print -quit)"
 
           if [ -z "$PACKAGE_JSON" ]; then
-            echo "package.json tidak ditemukan"
+            echo "ERROR: package.json tidak ditemukan."
             find site-src -maxdepth 4 -type f | head -80
             exit 1
           fi
 
           PROJECT_DIR="$(dirname "$PACKAGE_JSON")"
 
+          echo "Memeriksa struktur proyek..."
+
           test -f "$PROJECT_DIR/index.html"
           test -f "$PROJECT_DIR/worker-api.js"
           test -f "$PROJECT_DIR/wrangler.toml"
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+          echo "Proyek ditemukan: $PROJECT_DIR"
 
       - name: Build website
         shell: bash
@@ -68,10 +80,37 @@ jobs:
 
           cd "$PROJECT_DIR"
 
-          npm install
+          echo "Memasang dependensi..."
+
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+          echo "Membangun website..."
           npm run build
 
-          test -f dist/index.html
+          if [ ! -f dist/index.html ]; then
+            echo "ERROR: dist/index.html tidak ditemukan."
+            exit 1
+          fi
+
+          echo "Build website berhasil."
+
+      - name: Check Worker configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd "$PROJECT_DIR"
+
+          echo "Memeriksa konfigurasi Worker..."
+
+          grep -q 'name = "auto-barkas-db"' wrangler.toml
+          grep -q 'database_name = "auto-barkas-db"' wrangler.toml
+
+          echo "Konfigurasi dasar Worker ditemukan."
 
       - name: Deploy Worker API
         uses: cloudflare/wrangler-action@v4
@@ -90,3 +129,11 @@ jobs:
           command: pages deploy dist --project-name=auto-barkas --branch=main
           workingDirectory: ${{ env.PROJECT_DIR }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deployment completed
+        shell: bash
+        run: |
+          echo "================================"
+          echo "AUTO BARKAS v1.10.5"
+          echo "Deployment selesai."
+          echo "================================"
