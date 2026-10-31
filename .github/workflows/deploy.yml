@@ -13,6 +13,7 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,8 +26,9 @@ jobs:
       - name: Extract ZIP
         shell: bash
         run: |
-          set -eu
-          ZIP_FILE="AUTO-BARKAS-v1.10.2-perbaikan.zip"
+          set -euo pipefail
+
+          ZIP_FILE="AUTO-BARKAS-v1.10.3-perbaikan-final.zip"
 
           if [ ! -f "$ZIP_FILE" ]; then
             echo "ZIP tidak ditemukan: $ZIP_FILE"
@@ -38,10 +40,11 @@ jobs:
           mkdir -p site-src
           unzip -oq "$ZIP_FILE" -d site-src
 
-      - name: Build website
+      - name: Find project directory
         shell: bash
         run: |
-          set -eu
+          set -euo pipefail
+
           PACKAGE_JSON="$(find site-src -type f -name package.json -print -quit)"
 
           if [ -z "$PACKAGE_JSON" ]; then
@@ -51,20 +54,39 @@ jobs:
           fi
 
           PROJECT_DIR="$(dirname "$PACKAGE_JSON")"
+
           test -f "$PROJECT_DIR/index.html"
+          test -f "$PROJECT_DIR/worker-api.js"
+          test -f "$PROJECT_DIR/wrangler.toml"
+
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Build website
+        shell: bash
+        run: |
+          set -euo pipefail
 
           cd "$PROJECT_DIR"
+
           npm install
           npm run build
+
           test -f dist/index.html
 
-          mkdir -p "$GITHUB_WORKSPACE/deploy-dist"
-          cp -a dist/. "$GITHUB_WORKSPACE/deploy-dist/"
-
-      - name: Deploy to Cloudflare Pages
+      - name: Deploy Worker API
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy deploy-dist --project-name=auto-barkas --branch=main
+          command: deploy --config wrangler.toml
+          workingDirectory: ${{ env.PROJECT_DIR }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy website to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=auto-barkas --branch=main
+          workingDirectory: ${{ env.PROJECT_DIR }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
