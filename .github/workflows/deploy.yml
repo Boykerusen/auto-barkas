@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          ZIP_FILE="AUTO-BARKAS-v1.10.5-perbaikan-cloudinary-public-id.zip"
+          ZIP_FILE="AUTO-BARKAS-v1.10.6-perbaikan-wrangler-cloudinary.zip"
 
           if [ ! -f "$ZIP_FILE" ]; then
             echo "ERROR: ZIP tidak ditemukan: $ZIP_FILE"
@@ -108,9 +108,13 @@ jobs:
           echo "Memeriksa konfigurasi Worker..."
 
           grep -q 'name = "auto-barkas-db"' wrangler.toml
+          grep -q 'main = "worker-api.js"' wrangler.toml
           grep -q 'database_name = "auto-barkas-db"' wrangler.toml
+          grep -q 'database_id = "8cb87089-7a98-45bf-ab0c-647b260a62c1"' wrangler.toml
+          grep -q 'CLOUDINARY_CLOUD_NAME = "kelqxbib"' wrangler.toml
+          grep -q '"*/15 \* \* \* \*"' wrangler.toml
 
-          echo "Konfigurasi dasar Worker ditemukan."
+          echo "Konfigurasi Worker, D1, Cloudinary, dan Cron sesuai."
 
       - name: Deploy Worker API
         uses: cloudflare/wrangler-action@v4
@@ -134,6 +138,6 @@ jobs:
         shell: bash
         run: |
           echo "================================"
-          echo "AUTO BARKAS v1.10.5"
+          echo "AUTO BARKAS v1.10.6"
           echo "Deployment selesai."
           echo "================================"
