@@ -1,25 +1,21 @@
+
 name: Build and Deploy AUTO BARKAS
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
-  deployments: write
-
-concurrency:
-  group: auto-barkas-deploy
-  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     env:
-      ZIP_FILE: AUTO-BARKAS-v1.12.3-3d-gold-automotive-title.zip
+      ZIP_FILE: AUTO-BARKAS-v1.12.4-PIXAR-DISNEY-3D-ANIMATION.zip
 
     steps:
       - name: Checkout repository
@@ -28,63 +24,60 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: 20
 
-      - name: Extract ZIP
+      - name: Extract project ZIP
         shell: bash
         run: |
-          set -euo pipefail
-
-          echo "ZIP yang dipilih: $ZIP_FILE"
-
+          set -e
           if [ ! -f "$ZIP_FILE" ]; then
             echo "ERROR: ZIP tidak ditemukan: $ZIP_FILE"
-            echo "Daftar file ZIP di root repository:"
-            find . -maxdepth 1 -type f -iname '*.zip' -printf '%f\n' | sort
+            echo "Daftar ZIP di repository:"
+            ls -lah *.zip || true
             exit 1
           fi
 
-          echo "Memeriksa integritas ZIP..."
-          unzip -t "$ZIP_FILE"
-
           mkdir -p site-src
-          unzip -oq "$ZIP_FILE" -d site-src
+          unzip -q "$ZIP_FILE" -d site-src
 
-          echo "Ekstraksi ZIP berhasil."
+          echo "ZIP berhasil diekstrak."
+          find site-src -maxdepth 3 -name package.json -print
 
       - name: Find project directory
         shell: bash
         run: |
-          set -euo pipefail
+          set -e
 
-          PACKAGE_JSON="$(find site-src -type f -name package.json -print -quit)"
+          PROJECT_DIR="$(find site-src -name package.json -printf '%h\n' | head -n 1)"
 
-          if [ -z "$PACKAGE_JSON" ]; then
+          if [ -z "$PROJECT_DIR" ]; then
             echo "ERROR: package.json tidak ditemukan."
-            find site-src -maxdepth 5 -type f | head -100
             exit 1
           fi
 
-          PROJECT_DIR="$(dirname "$PACKAGE_JSON")"
+          if [ ! -f "$PROJECT_DIR/index.html" ]; then
+            echo "ERROR: index.html tidak ditemukan."
+            exit 1
+          fi
 
-          echo "Memeriksa struktur proyek..."
+          if [ ! -f "$PROJECT_DIR/worker-api.js" ]; then
+            echo "ERROR: worker-api.js tidak ditemukan."
+            exit 1
+          fi
 
-          test -f "$PROJECT_DIR/index.html"
-          test -f "$PROJECT_DIR/worker-api.js"
-          test -f "$PROJECT_DIR/wrangler.toml"
+          if [ ! -f "$PROJECT_DIR/wrangler.toml" ]; then
+            echo "ERROR: wrangler.toml tidak ditemukan."
+            exit 1
+          fi
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Project ditemukan: $PROJECT_DIR"
 
-          echo "Proyek ditemukan: $PROJECT_DIR"
-
-      - name: Build website
+      - name: Install dependencies and build
         shell: bash
         run: |
-          set -euo pipefail
-
+          set -e
           cd "$PROJECT_DIR"
-
-          echo "Memasang dependensi..."
 
           if [ -f package-lock.json ]; then
             npm ci
@@ -92,67 +85,53 @@ jobs:
             npm install
           fi
 
-          echo "Membangun website..."
           npm run build
+
+          if [ ! -d dist ]; then
+            echo "ERROR: Folder dist tidak ditemukan."
+            exit 1
+          fi
 
           if [ ! -f dist/index.html ]; then
             echo "ERROR: dist/index.html tidak ditemukan."
             exit 1
           fi
 
-          echo "Build website berhasil."
+          echo "Build berhasil."
 
-      - name: Check Worker configuration
+      - name: Verify Cloudflare configuration
         shell: bash
         run: |
-          set -euo pipefail
-
+          set -e
           cd "$PROJECT_DIR"
 
-          echo "Memeriksa konfigurasi Worker..."
+          grep -q 'name = "auto-barkas-db"' wrangler.toml
+          grep -q 'main = "worker-api.js"' wrangler.toml
+          grep -q '8cb87089-7a98-45bf-ab0c-647b260a62c1' wrangler.toml
+          grep -q 'kelqxbib' wrangler.toml
+          grep -q '\*/15 \* \* \* \*' wrangler.toml
 
-          check_config() {
-            if grep -Fq "$2" wrangler.toml; then
-              echo "OK: $1"
-            else
-              echo "GAGAL: $1"
-              echo "Isi wrangler.toml:"
-              cat wrangler.toml
-              exit 1
-            fi
-          }
+          echo "Konfigurasi Worker, D1, Cloudinary, dan Cron terverifikasi."
 
-          check_config "Nama Worker" 'name = "auto-barkas-db"'
-          check_config "File utama Worker" 'main = "worker-api.js"'
-          check_config "Nama database D1" 'database_name = "auto-barkas-db"'
-          check_config "Database ID" 'database_id = "8cb87089-7a98-45bf-ab0c-647b260a62c1"'
-          check_config "Cloudinary" 'CLOUDINARY_CLOUD_NAME = "kelqxbib"'
-          check_config "Jadwal Cron" 'crons = ["*/15 * * * *"]'
-
-          echo "Semua konfigurasi Worker sesuai."
-
-      - name: Deploy Worker API
+      - name: Deploy Cloudflare Worker
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --config wrangler.toml
           workingDirectory: ${{ env.PROJECT_DIR }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: deploy
 
-      - name: Deploy website to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=auto-barkas --branch=main
-          workingDirectory: ${{ env.PROJECT_DIR }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Deployment completed
+      - name: Deploy Cloudflare Pages
         shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "================================"
-          echo "AUTO BARKAS v1.12.3"
-          echo "Deployment selesai."
-          echo "================================"
+          set -e
+          cd "$PROJECT_DIR"
+
+          npx wrangler pages deploy dist \
+            --project-name=auto-barkas \
+            --branch=main
+
+          echo "AUTO BARKAS berhasil di-deploy."
