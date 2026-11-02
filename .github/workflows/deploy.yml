@@ -32,7 +32,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          ZIP_FILE="AUTO-BARKAS-v1.12.2-gold-brand-square-cards.zip"
+          ZIP_FILE="AUTO-BARKAS-v1.12.3-3d-gold-automotive-title.zip"
 
           if [ ! -f "$ZIP_FILE" ]; then
             echo "ERROR: ZIP tidak ditemukan: $ZIP_FILE"
