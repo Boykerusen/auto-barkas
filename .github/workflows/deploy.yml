@@ -18,6 +18,9 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    env:
+      ZIP_FILE: AUTO-BARKAS-v1.12.3-3d-gold-automotive-title.zip
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,20 +35,22 @@ jobs:
         run: |
           set -euo pipefail
 
-          ZIP_FILE="ZIP_FILE: AUTO-BARKAS-v1.12.0-3D-ANIMATION-STYLE.zip"
+          echo "ZIP yang dipilih: $ZIP_FILE"
 
           if [ ! -f "$ZIP_FILE" ]; then
             echo "ERROR: ZIP tidak ditemukan: $ZIP_FILE"
-            echo "Isi folder repository:"
-            ls -la
+            echo "Daftar file ZIP di root repository:"
+            find . -maxdepth 1 -type f -iname '*.zip' -printf '%f\n' | sort
             exit 1
           fi
 
-          echo "Memeriksa ZIP..."
+          echo "Memeriksa integritas ZIP..."
           unzip -t "$ZIP_FILE"
 
           mkdir -p site-src
           unzip -oq "$ZIP_FILE" -d site-src
+
+          echo "Ekstraksi ZIP berhasil."
 
       - name: Find project directory
         shell: bash
@@ -148,6 +153,6 @@ jobs:
         shell: bash
         run: |
           echo "================================"
-          echo "AUTO BARKAS v1.11.0"
+          echo "AUTO BARKAS v1.12.3"
           echo "Deployment selesai."
           echo "================================"
