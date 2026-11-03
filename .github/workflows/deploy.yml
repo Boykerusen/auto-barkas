@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ZIP_FILE: AUTO-BARKAS-v1.14.0-3D-CINEMATIC-ICONS.zip
+      ZIP_FILE: AUTO-BARKAS-v1.14.1-POPUP-ADMIN-MANAGED.zip
 
     steps:
       - name: Checkout repository
