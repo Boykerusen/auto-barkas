@@ -1,4 +1,3 @@
-
 name: Build and Deploy AUTO BARKAS
 
 on:
@@ -15,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ZIP_FILE: AUTO-BARKAS-v1.12.4-PIXAR-DISNEY-3D-ANIMATION.zip
+      ZIP_FILE: AUTO-BARKAS-v1.13.0-3D-CINEMATIC-WORLD.zip
 
     steps:
       - name: Checkout repository
