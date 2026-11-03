@@ -14,7 +14,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ZIP_FILE: AUTO-BARKAS-v1.13.0-3D-CINEMATIC-WORLD.zip
+      ZIP_FILE:     env:
+      ZIP_FILE: AUTO-BARKAS-v1_13_0-3D-CINEMATIC-WORLD.zip
 
     steps:
       - name: Checkout repository
