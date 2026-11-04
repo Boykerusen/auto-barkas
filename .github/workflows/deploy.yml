@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ZIP_FILE: AUTO-BARKAS-v1.14.5-GOOGLE-VERIFICATION.zip
+      ZIP_FILE: AUTO-BARKAS-v1.14.6-SITEMAP-SEO.zip
 
     steps:
       - name: Checkout repository
